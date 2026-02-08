@@ -136,11 +136,9 @@ self.onmessage = function(e) {
     buffer = e.data.buffer;
     f_buffer = new Float32Array(buffer);
     vertexCount = e.data.vertexCount;
-    console.log("[GS Worker] buffer received, vertexCount:", vertexCount, "byteLength:", buffer.byteLength);
 
     // Generate texture
     var tex = generateTexture(buffer, vertexCount);
-    console.log("[GS Worker] texture generated:", tex.texwidth, "x", tex.texheight);
     self.postMessage({ texdata: tex.texdata, texwidth: tex.texwidth, texheight: tex.texheight }, [tex.texdata.buffer]);
   }
   if (e.data.view) {
@@ -155,7 +153,6 @@ self.onmessage = function(e) {
     lastProj = viewProj;
 
     var depthIndex = runSort(f_buffer, vertexCount, viewProj);
-    console.log("[GS Worker] sort done, posting depthIndex len:", depthIndex.length);
     self.postMessage({ depthIndex: depthIndex, vertexCount: vertexCount }, [depthIndex.buffer]);
   }
   } catch(err) { console.error("[GS Worker] error:", err); }
@@ -359,7 +356,6 @@ export class SplatRenderer {
           texwidth: number;
           texheight: number;
         };
-        console.log("[GS] Worker → texdata received:", texwidth, "x", texheight, "len:", texdata.length);
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -384,7 +380,6 @@ export class SplatRenderer {
           depthIndex: Uint32Array;
           vertexCount: number;
         };
-        console.log("[GS] Worker → depthIndex received, vertexCount:", vc, "first indices:", depthIndex[0], depthIndex[1], depthIndex[2]);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.indexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, depthIndex, gl.DYNAMIC_DRAW);
         this.vertexCount = vc;
@@ -432,10 +427,6 @@ export class SplatRenderer {
       u[32 * i + 30] = Math.round(Math.min(1, Math.max(-1, msg.rotations[i * 4 + 2]!)) * 128 + 128);
       u[32 * i + 31] = Math.round(Math.min(1, Math.max(-1, msg.rotations[i * 4 + 3]!)) * 128 + 128);
     }
-
-    console.log("[GS] setData: packing", count, "splats, buffer size:", buffer.byteLength);
-    console.log("[GS] sample pos:", f[0], f[1], f[2], "scale:", f[3], f[4], f[5]);
-    console.log("[GS] sample rgba:", u[24], u[25], u[26], u[27], "quat:", u[28], u[29], u[30], u[31]);
 
     // Send to worker (transfer ownership)
     this.worker?.postMessage({ buffer, vertexCount: count }, [buffer]);
@@ -502,21 +493,31 @@ export class SplatRenderer {
     this.focalX = (f * h) / 2;
     this.focalY = (f * h) / 2;
 
-    // --- Projection: antimatter15 style (Y-flip, positive-Z clip) ---
+    // --- Projection: antimatter15 style, positive-Z clip ---
+    // Y is NOT negated here (unlike antimatter15) because we also flip
+    // the Y row of the view matrix below; the two negations cancel out,
+    // giving the same screen positions as Z-flip-only.
     const znear = this.camera.near;
     const zfar = this.camera.far;
     // prettier-ignore
     const projMat = new Float32Array([
-      (2 * this.focalX) / w, 0, 0, 0,
-      0, -(2 * this.focalY) / h, 0, 0,
+      -(2 * this.focalX) / w, 0, 0, 0,
+      0, (2 * this.focalY) / h, 0, 0,
       0, 0, zfar / (zfar - znear), 1,
       0, 0, -(zfar * znear) / (zfar - znear), 0,
     ]);
 
-    // --- View: flip Z row so visible objects have positive cam.z ---
-    // Our lookAt uses OpenGL convention (camera looks along -Z).
-    // antimatter15/splat shader expects positive Z for visible objects.
+    // --- View: flip Y+Z rows to match antimatter15/COLMAP convention ---
+    // Our lookAt: rows = (right, up, -forward)
+    // After flip: rows = (right, -up, forward) → matches antimatter15
+    // This ensures mat3(view) is correct for covariance computation.
+    // The Y-flip's effect on positions is cancelled by the projection
+    // Y sign change above.
     const viewMat = this.camera.getViewMatrix();
+    viewMat[1] = -viewMat[1]!;
+    viewMat[5] = -viewMat[5]!;
+    viewMat[9] = -viewMat[9]!;
+    viewMat[13] = -viewMat[13]!;
     viewMat[2] = -viewMat[2]!;
     viewMat[6] = -viewMat[6]!;
     viewMat[10] = -viewMat[10]!;

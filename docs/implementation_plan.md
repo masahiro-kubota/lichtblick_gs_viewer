@@ -105,62 +105,64 @@ interface GaussianSplatMsg {
 
 ---
 
-### Step 2: PLY パーサ実装
+### Step 2: PLY パーサ実装 ✅
 
-- [ ] `plyParser.ts` — ヘッダ解析 + binary_little_endian 読み込み
-- [ ] `activations.ts` — sigmoid / exp / SH DC→RGB 変換
-- [ ] パース結果をコンソールに出力して検証（頂点数、値域の確認）
+- [x] `plyParser.ts` — ヘッダ解析 + binary_little_endian 読み込み
+- [x] `activations.ts` — sigmoid / exp / SH DC→RGB 変換
+- [x] パース結果をコンソールに出力して検証（頂点数、値域の確認）
 
-**到達条件**: PLY を読み込んで `GaussianSplatMsg` 相当のデータが取れる
-
----
-
-### Step 3: Lv0 レンダラ — 色付き点群
-
-- [ ] WebGL2 コンテキスト取得 + canvas セットアップ
-- [ ] orbit camera 実装（マウスドラッグで回転・ズーム）
-- [ ] GL_POINTS で position + color を描画
-- [ ] パネル上でファイルドロップ or 埋め込みパスで PLY を読み込み
-
-**到達条件**: Foxglove パネル内で色付き点群が表示され、視点を回せる
+**到達条件**: PLY を読み込んで `GaussianSplatMsg` 相当のデータが取れる ✅
 
 ---
 
-### Step 4: Lv1 レンダラ — Billboard + ガウス円
+### Step 3: Lv0 レンダラ — 色付き点群 ✅
 
-- [ ] 点を billboard quad に変更（ジオメトリシェーダ or instancing）
-- [ ] フラグメントシェーダでガウス関数（円形）を描画
-- [ ] scale の最大値を使って billboard サイズを決定
+- [x] WebGL2 コンテキスト取得 + canvas セットアップ
+- [x] orbit camera 実装（マウスドラッグで回転・ズーム）
+- [x] GL_POINTS で position + color を描画
+- [x] パネル上でファイルドロップで PLY を読み込み
 
-**到達条件**: 各スプラットが「ぼけた円」として見える
-
----
-
-### Step 5: Lv2 レンダラ — Opacity + ソート + 合成
-
-- [ ] opacity を反映（アルファブレンディング）
-- [ ] 視点からの距離でソート（back-to-front）
-- [ ] ブレンディング: `src_alpha, one_minus_src_alpha`
-
-**到達条件**: 半透明の重ね合わせで「面」が見え始める
+**到達条件**: Lichtblick パネル内で色付き点群が表示され、視点を回せる ✅
 
 ---
 
-### Step 6: topic 購読レンダ
+### Step 4: Lv1 レンダラ — Billboard + ガウス円 ✅
 
-- [ ] `context.subscribe` で msg v0 topic を購読
-- [ ] 受信データで同じレンダパイプラインを駆動
-- [ ] PLY 直読みモードと切り替え可能にする
+- [x] 点を instanced billboard quad に変更
+- [x] フラグメントシェーダでガウス関数（円形）を描画
+- [x] scale の最大値を使って billboard サイズを決定
 
-**到達条件**: PLY 直読みと topic 購読で描画結果が一致
+**到達条件**: 各スプラットが「ぼけた円」として見える ✅
 
 ---
 
-### Step 7: MCAP 記録・再生
+### Step 5: Lv2 レンダラ — Opacity + ソート + 合成 ✅
 
-- [ ] `ply_to_mcap.py` — PLY を msg v0 に変換して MCAP に書き出し
-- [ ] Foxglove で MCAP を開いてスプラットが再生されることを確認
-- [ ] タイムスタンプに沿った再生
+- [x] opacity を反映（アルファブレンディング）
+- [x] 視点からの距離でソート（back-to-front、視点変化時のみ）
+- [x] ブレンディング: premultiplied alpha (ONE, ONE_MINUS_SRC_ALPHA)
+- [x] 深度テスト無効で正しい半透明合成
+
+**到達条件**: 半透明の重ね合わせで「面」が見え始める ✅
+
+---
+
+### Step 6: topic 購読レンダ ✅
+
+- [x] `context.subscribe` で msg v0 topic を購読
+- [x] JSON Schema 定義 + base64 エンコード/デコード
+- [x] 受信データで同じレンダパイプラインを駆動
+- [x] PLY 直読みモードと切り替え可能にする
+
+**到達条件**: PLY 直読みと topic 購読で描画結果が一致 ✅
+
+---
+
+### Step 7: MCAP 記録・再生 ✅
+
+- [x] `ply_to_mcap.py` — PLY を msg v0 に変換して MCAP に書き出し
+- [x] 741,883 splats → 37MB MCAP 変換成功
+- [ ] Lichtblick で MCAP を開いてスプラットが再生されることを確認（手動テスト）
 
 **到達条件**: MCAP 再生でセンサログと一緒に GS が表示される
 

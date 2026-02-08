@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { GaussianSplatMsg } from "./msg/GaussianSplatMsg";
 import { GAUSSIAN_SPLAT_SCHEMA_NAME, GaussianSplatMsgJson } from "./msg/schema";
 import { parsePly } from "./parsers/plyParser";
-import { RenderLevel, SplatRenderer } from "./renderer/SplatRenderer";
+import { SplatRenderer } from "./renderer/SplatRenderer";
 import { base64ToFloat32Array } from "./utils/base64";
 
 type InputMode = "ply" | "topic";
@@ -32,8 +32,6 @@ function GaussianSplatPanel({
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
   const [status, setStatus] = useState("Drop .ply or subscribe to topic");
   const [splatData, setSplatData] = useState<GaussianSplatMsg | undefined>();
-  const [renderLevel, setRenderLevel] = useState<RenderLevel>(2);
-  const [splatScale, setSplatScale] = useState(0.2);
   const [inputMode, setInputMode] = useState<InputMode>("ply");
   const [availableTopics, setAvailableTopics] = useState<Immutable<Topic[]>>([]);
   const [selectedTopic, setSelectedTopic] = useState<string>("");
@@ -98,14 +96,6 @@ function GaussianSplatPanel({
     };
   }, [splatData]);
 
-  useEffect(() => {
-    rendererRef.current?.setRenderLevel(renderLevel);
-  }, [renderLevel]);
-
-  useEffect(() => {
-    rendererRef.current?.setSplatScale(splatScale);
-  }, [splatScale]);
-
   const handleFile = useCallback(async (file: File) => {
     setInputMode("ply");
     setStatus(`Loading ${file.name}...`);
@@ -158,7 +148,7 @@ function GaussianSplatPanel({
         height: "100%",
         position: "relative",
         overflow: "hidden",
-        background: "#1a1a2e",
+        background: "#000",
       }}
     >
       <canvas
@@ -222,46 +212,9 @@ function GaussianSplatPanel({
             background: "rgba(0,0,0,0.5)",
             padding: "4px 8px",
             borderRadius: 4,
-            display: "flex",
-            gap: 12,
-            alignItems: "center",
           }}
         >
-          <span>{status}</span>
-          <span>|</span>
-          {([0, 1, 2] as const).map((lv) => (
-            <button
-              key={lv}
-              onClick={() => setRenderLevel(lv)}
-              style={{
-                background: renderLevel === lv ? "#4a9eff" : "#333",
-                color: "#fff",
-                border: "none",
-                borderRadius: 3,
-                padding: "2px 8px",
-                cursor: "pointer",
-                fontSize: "0.75rem",
-              }}
-            >
-              Lv{lv}
-            </button>
-          ))}
-          {renderLevel > 0 && (
-            <>
-              <span>|</span>
-              <span>Scale</span>
-              <input
-                type="range"
-                min="0.01"
-                max="2.0"
-                step="0.01"
-                value={splatScale}
-                onChange={(e) => setSplatScale(parseFloat(e.target.value))}
-                style={{ width: 80, accentColor: "#4a9eff" }}
-              />
-              <span>{splatScale.toFixed(2)}</span>
-            </>
-          )}
+          {status}
         </div>
       )}
     </div>

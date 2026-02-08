@@ -93,10 +93,10 @@ export function parsePly(buffer: ArrayBuffer): GaussianSplatMsg {
   for (let i = 0; i < vertexCount; i++) {
     const byteOffset = i * stride * 4; // 4 bytes per float32
 
-    // position: そのまま
+    // position: COLMAP/3DGS は Y-down → WebGL Y-up に変換（Y を反転）
     positions[i * 3 + 0] = dataView.getFloat32(byteOffset + iX * 4, true);
-    positions[i * 3 + 1] = dataView.getFloat32(byteOffset + iY * 4, true);
-    positions[i * 3 + 2] = dataView.getFloat32(byteOffset + iZ * 4, true);
+    positions[i * 3 + 1] = -dataView.getFloat32(byteOffset + iY * 4, true);
+    positions[i * 3 + 2] = -dataView.getFloat32(byteOffset + iZ * 4, true);
 
     // color: SH DC → RGB
     colors[i * 3 + 0] = shDcToRgb(dataView.getFloat32(byteOffset + iDc0 * 4, true));

@@ -98,6 +98,7 @@ export class SplatRenderer {
   private detachCamera: (() => void) | null = null;
   private splatCount = 0;
   private renderLevel: RenderLevel = 2;
+  private splatScale = 0.2; // スプラットサイズ倍率
 
   // Lv0
   private progLv0: WebGLProgram | null = null;
@@ -160,6 +161,10 @@ export class SplatRenderer {
   public setRenderLevel(level: RenderLevel): void {
     this.renderLevel = level;
     this.sortDirty = true;
+  }
+
+  public setSplatScale(scale: number): void {
+    this.splatScale = scale;
   }
 
   public setData(msg: GaussianSplatMsg): void {
@@ -412,7 +417,7 @@ export class SplatRenderer {
     gl.useProgram(this.progLv1);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.progLv1!, "u_view"), false, viewMat);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.progLv1!, "u_proj"), false, projMat);
-    gl.uniform1f(gl.getUniformLocation(this.progLv1!, "u_splatScale"), 1.0);
+    gl.uniform1f(gl.getUniformLocation(this.progLv1!, "u_splatScale"), this.splatScale);
 
     gl.bindVertexArray(this.vaoLv1);
     gl.drawElementsInstanced(gl.TRIANGLES, this.quadIndexCount, gl.UNSIGNED_SHORT, 0, this.splatCount);
@@ -432,7 +437,7 @@ export class SplatRenderer {
     gl.useProgram(this.progLv1);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.progLv1!, "u_view"), false, viewMat);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.progLv1!, "u_proj"), false, projMat);
-    gl.uniform1f(gl.getUniformLocation(this.progLv1!, "u_splatScale"), 1.0);
+    gl.uniform1f(gl.getUniformLocation(this.progLv1!, "u_splatScale"), this.splatScale);
 
     gl.bindVertexArray(this.vaoLv1);
     gl.drawElementsInstanced(gl.TRIANGLES, this.quadIndexCount, gl.UNSIGNED_SHORT, 0, this.splatCount);

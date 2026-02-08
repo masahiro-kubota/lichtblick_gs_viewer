@@ -33,6 +33,7 @@ function GaussianSplatPanel({
   const [status, setStatus] = useState("Drop .ply or subscribe to topic");
   const [splatData, setSplatData] = useState<GaussianSplatMsg | undefined>();
   const [renderLevel, setRenderLevel] = useState<RenderLevel>(2);
+  const [splatScale, setSplatScale] = useState(0.2);
   const [inputMode, setInputMode] = useState<InputMode>("ply");
   const [availableTopics, setAvailableTopics] = useState<Immutable<Topic[]>>([]);
   const [selectedTopic, setSelectedTopic] = useState<string>("");
@@ -100,6 +101,10 @@ function GaussianSplatPanel({
   useEffect(() => {
     rendererRef.current?.setRenderLevel(renderLevel);
   }, [renderLevel]);
+
+  useEffect(() => {
+    rendererRef.current?.setSplatScale(splatScale);
+  }, [splatScale]);
 
   const handleFile = useCallback(async (file: File) => {
     setInputMode("ply");
@@ -241,6 +246,22 @@ function GaussianSplatPanel({
               Lv{lv}
             </button>
           ))}
+          {renderLevel > 0 && (
+            <>
+              <span>|</span>
+              <span>Scale</span>
+              <input
+                type="range"
+                min="0.01"
+                max="2.0"
+                step="0.01"
+                value={splatScale}
+                onChange={(e) => setSplatScale(parseFloat(e.target.value))}
+                style={{ width: 80, accentColor: "#4a9eff" }}
+              />
+              <span>{splatScale.toFixed(2)}</span>
+            </>
+          )}
         </div>
       )}
     </div>

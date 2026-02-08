@@ -131,13 +131,16 @@ var vertexCount = 0;
 var lastProj = [];
 
 self.onmessage = function(e) {
+  try {
   if (e.data.buffer) {
     buffer = e.data.buffer;
     f_buffer = new Float32Array(buffer);
     vertexCount = e.data.vertexCount;
+    console.log("[GS Worker] buffer received, vertexCount:", vertexCount, "byteLength:", buffer.byteLength);
 
     // Generate texture
     var tex = generateTexture(buffer, vertexCount);
+    console.log("[GS Worker] texture generated:", tex.texwidth, "x", tex.texheight);
     self.postMessage({ texdata: tex.texdata, texwidth: tex.texwidth, texheight: tex.texheight }, [tex.texdata.buffer]);
   }
   if (e.data.view) {
@@ -152,8 +155,10 @@ self.onmessage = function(e) {
     lastProj = viewProj;
 
     var depthIndex = runSort(f_buffer, vertexCount, viewProj);
+    console.log("[GS Worker] sort done, posting depthIndex len:", depthIndex.length);
     self.postMessage({ depthIndex: depthIndex, vertexCount: vertexCount }, [depthIndex.buffer]);
   }
+  } catch(err) { console.error("[GS Worker] error:", err); }
 };
 `;
 }
@@ -269,7 +274,7 @@ export class SplatRenderer {
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    const gl = canvas.getContext("webgl2", { antialias: false, alpha: false });
+    const gl = canvas.getContext("webgl2", { antialias: false });
     if (!gl) {
       throw new Error("WebGL2 not supported");
     }
@@ -341,6 +346,10 @@ export class SplatRenderer {
     const blob = new Blob([createWorkerCode()], { type: "application/javascript" });
     this.worker = new Worker(URL.createObjectURL(blob));
 
+    this.worker.onerror = (e) => {
+      console.error("[GS] Worker error:", e.message, e);
+    };
+
     this.worker.onmessage = (e: MessageEvent) => {
       const gl = this.gl;
       if (e.data.texdata) {
@@ -350,6 +359,7 @@ export class SplatRenderer {
           texwidth: number;
           texheight: number;
         };
+        console.log("[GS] Worker → texdata received:", texwidth, "x", texheight, "len:", texdata.length);
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -374,6 +384,7 @@ export class SplatRenderer {
           depthIndex: Uint32Array;
           vertexCount: number;
         };
+        console.log("[GS] Worker → depthIndex received, vertexCount:", vc, "first indices:", depthIndex[0], depthIndex[1], depthIndex[2]);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.indexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, depthIndex, gl.DYNAMIC_DRAW);
         this.vertexCount = vc;
@@ -421,6 +432,10 @@ export class SplatRenderer {
       u[32 * i + 30] = Math.round(Math.min(1, Math.max(-1, msg.rotations[i * 4 + 2]!)) * 128 + 128);
       u[32 * i + 31] = Math.round(Math.min(1, Math.max(-1, msg.rotations[i * 4 + 3]!)) * 128 + 128);
     }
+
+    console.log("[GS] setData: packing", count, "splats, buffer size:", buffer.byteLength);
+    console.log("[GS] sample pos:", f[0], f[1], f[2], "scale:", f[3], f[4], f[5]);
+    console.log("[GS] sample rgba:", u[24], u[25], u[26], u[27], "quat:", u[28], u[29], u[30], u[31]);
 
     // Send to worker (transfer ownership)
     this.worker?.postMessage({ buffer, vertexCount: count }, [buffer]);
@@ -481,15 +496,31 @@ export class SplatRenderer {
     }
     gl.viewport(0, 0, w, h);
 
-    const aspect = w / h;
-    const viewMat = this.camera.getViewMatrix();
-    const projMat = this.camera.getProjectionMatrix(aspect);
+    // --- Focal length from camera FOV ---
+    const fovRad = (this.camera.fov * Math.PI) / 180;
+    const f = 1 / Math.tan(fovRad / 2);
+    this.focalX = (f * h) / 2;
+    this.focalY = (f * h) / 2;
 
-    // Derive focal length from projection matrix
-    // proj[0] = f/aspect = 2*fx/width → fx = proj[0] * width / 2
-    // proj[5] = f = 2*fy/height → fy = |proj[5]| * height / 2
-    this.focalX = Math.abs(projMat[0]!) * w / 2;
-    this.focalY = Math.abs(projMat[5]!) * h / 2;
+    // --- Projection: antimatter15 style (Y-flip, positive-Z clip) ---
+    const znear = this.camera.near;
+    const zfar = this.camera.far;
+    // prettier-ignore
+    const projMat = new Float32Array([
+      (2 * this.focalX) / w, 0, 0, 0,
+      0, -(2 * this.focalY) / h, 0, 0,
+      0, 0, zfar / (zfar - znear), 1,
+      0, 0, -(zfar * znear) / (zfar - znear), 0,
+    ]);
+
+    // --- View: flip Z row so visible objects have positive cam.z ---
+    // Our lookAt uses OpenGL convention (camera looks along -Z).
+    // antimatter15/splat shader expects positive Z for visible objects.
+    const viewMat = this.camera.getViewMatrix();
+    viewMat[2] = -viewMat[2]!;
+    viewMat[6] = -viewMat[6]!;
+    viewMat[10] = -viewMat[10]!;
+    viewMat[14] = -viewMat[14]!;
 
     // Send viewProj to worker for sorting
     const viewProj = multiply4(projMat, viewMat);
@@ -502,7 +533,7 @@ export class SplatRenderer {
     gl.uniform2f(this.u_focal, this.focalX, this.focalY);
     gl.uniform2f(this.u_viewport, w, h);
 
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clearColor(0.0, 0.0, 0.0, 0.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     if (this.vertexCount > 0) {

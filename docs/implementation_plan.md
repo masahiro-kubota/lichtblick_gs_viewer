@@ -67,15 +67,41 @@ interface GaussianSplatMsg {
 }
 ```
 
+## アーキテクチャ方針
+
+### Phase 1: 独自パネルでGSレンダラを開発（現在）
+
+- Foxglove Extension（独自パネル）としてGSレンダラのコアロジックを実装
+- PLYパーサ、シェーダ、カメラ操作、スプラット描画を固める
+- 車両・TF・センサとの統合はこの段階では行わない
+
+### Phase 2: Lichtblick 3Dパネルへの統合（将来）
+
+- Phase 1 で検証済みのGSレンダラを Lichtblick の `SceneExtension` として移植
+- `packages/suite-base/src/panels/ThreeDeeRender/renderables/GaussianSplats.ts` に追加
+- TF解決・座標変換・車両表示は既存インフラが自動提供
+- 変更は最小限（1ファイル追加 + 登録1行）で、フォーク管理の負荷は低い
+
+### 方針決定の根拠
+
+| アプローチ | 評価 |
+|---|---|
+| Extension で3Dパネルを拡張 | 不可（Extension API に3Dパネルへのフックなし） |
+| 3Dパネルを丸ごとExtension化 | 非現実的（54,000行 + 内部API依存） |
+| 独自パネルにTF+車両も自前実装 | 工数過大 |
+| **独自パネル → SceneExtension 移植** | 最小工数で段階的に実現可能 |
+
+---
+
 ## 実装ステップ
 
-### Step 1: プロジェクトセットアップ
+### Step 1: プロジェクトセットアップ ✅
 
-- [ ] `npm init foxglove-extension@latest` で Extension 雛形作成
-- [ ] ディレクトリ構造を整備
-- [ ] ビルド → Foxglove で空パネルが表示されることを確認
+- [x] `npm init foxglove-extension@latest` で Extension 雛形作成
+- [x] ディレクトリ構造を整備
+- [x] ビルド → Lichtblick で空パネルが表示されることを確認
 
-**到達条件**: Foxglove に "Gaussian Splat Viewer" パネルが出る
+**到達条件**: Lichtblick に "Gaussian Splat Viewer" パネルが出る ✅
 
 ---
 

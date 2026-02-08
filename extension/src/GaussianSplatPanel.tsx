@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 
 import { GaussianSplatMsg } from "./msg/GaussianSplatMsg";
 import { parsePly } from "./parsers/plyParser";
-import { SplatRenderer } from "./renderer/SplatRenderer";
+import { RenderLevel, SplatRenderer } from "./renderer/SplatRenderer";
 
 function GaussianSplatPanel({
   context,
@@ -14,6 +14,7 @@ function GaussianSplatPanel({
   const [renderDone, setRenderDone] = useState<(() => void) | undefined>();
   const [status, setStatus] = useState("Drop a .ply file here");
   const [splatData, setSplatData] = useState<GaussianSplatMsg | undefined>();
+  const [renderLevel, setRenderLevel] = useState<RenderLevel>(2);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<SplatRenderer | undefined>();
 
@@ -44,6 +45,11 @@ function GaussianSplatPanel({
       rendererRef.current = undefined;
     };
   }, [splatData]);
+
+  // renderLevel 変更
+  useEffect(() => {
+    rendererRef.current?.setRenderLevel(renderLevel);
+  }, [renderLevel]);
 
   const handleFile = useCallback(async (file: File) => {
     setStatus(`Loading ${file.name}...`);
@@ -130,10 +136,30 @@ function GaussianSplatPanel({
             background: "rgba(0,0,0,0.5)",
             padding: "4px 8px",
             borderRadius: 4,
-            pointerEvents: "none",
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
           }}
         >
-          {status}
+          <span>{status}</span>
+          <span>|</span>
+          {([0, 1, 2] as const).map((lv) => (
+            <button
+              key={lv}
+              onClick={() => setRenderLevel(lv)}
+              style={{
+                background: renderLevel === lv ? "#4a9eff" : "#333",
+                color: "#fff",
+                border: "none",
+                borderRadius: 3,
+                padding: "2px 8px",
+                cursor: "pointer",
+                fontSize: "0.75rem",
+              }}
+            >
+              Lv{lv}
+            </button>
+          ))}
         </div>
       )}
     </div>

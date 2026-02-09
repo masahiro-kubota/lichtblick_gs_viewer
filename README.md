@@ -2,6 +2,9 @@
 
 Foxglove / Lichtblick Suite 向けの 3D Gaussian Splatting ビューアパネル拡張です。
 
+<img width="1214" height="909" alt="image" src="https://github.com/user-attachments/assets/8c54a31f-9f53-4437-83f4-a8ee5503ade6" />
+
+
 MCAP トピック経由または PLY ファイルのドラッグ&ドロップで 3DGS モデルをリアルタイムに可視化できます。WebGL2 による高速なソート済みスプラットレンダリングを実装しており、マウス操作によるインタラクティブなカメラ制御が可能です。
 
 ## 機能

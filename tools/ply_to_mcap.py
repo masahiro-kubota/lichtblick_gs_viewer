@@ -132,6 +132,49 @@ def write_mcap(data: dict, output_path: str, timestamp: float, frame_id: str):
         writer = Writer(f)
         writer.start()
 
+        # --- TF static schema (tf2_msgs/TFMessage) ---
+        tf_schema_data = json.dumps({
+            "type": "object",
+            "properties": {
+                "transforms": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "header": {
+                                "type": "object",
+                                "properties": {
+                                    "stamp": {"type": "object", "properties": {"sec": {"type": "integer"}, "nsec": {"type": "integer"}}},
+                                    "frame_id": {"type": "string"},
+                                },
+                            },
+                            "child_frame_id": {"type": "string"},
+                            "transform": {
+                                "type": "object",
+                                "properties": {
+                                    "translation": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}}},
+                                    "rotation": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "z": {"type": "number"}, "w": {"type": "number"}}},
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        }).encode()
+
+        tf_schema_id = writer.register_schema(
+            name="tf2_msgs/TFMessage",
+            encoding="jsonschema",
+            data=tf_schema_data,
+        )
+
+        tf_channel_id = writer.register_channel(
+            topic="/tf_static",
+            message_encoding="json",
+            schema_id=tf_schema_id,
+        )
+
+        # --- Gaussian Splat schema ---
         schema_id = writer.register_schema(
             name=SCHEMA_NAME,
             encoding=SCHEMA_ENCODING,
@@ -144,7 +187,33 @@ def write_mcap(data: dict, output_path: str, timestamp: float, frame_id: str):
             schema_id=schema_id,
         )
 
-        # メッセージ作成
+        timestamp_ns = int(timestamp * 1e9)
+        stamp_sec = int(timestamp)
+        stamp_nsec = int((timestamp - stamp_sec) * 1e9)
+
+        # Write TF static: world → frame_id (identity transform)
+        tf_msg = {
+            "transforms": [{
+                "header": {
+                    "stamp": {"sec": stamp_sec, "nsec": stamp_nsec},
+                    "frame_id": "world",
+                },
+                "child_frame_id": frame_id,
+                "transform": {
+                    "translation": {"x": 0.0, "y": 0.0, "z": 0.0},
+                    "rotation": {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0},
+                },
+            }],
+        }
+        tf_bytes = json.dumps(tf_msg).encode()
+        writer.add_message(
+            channel_id=tf_channel_id,
+            log_time=timestamp_ns,
+            data=tf_bytes,
+            publish_time=timestamp_ns,
+        )
+
+        # Write Gaussian Splat message
         msg = {
             "timestamp": timestamp,
             "frame_id": frame_id,
@@ -157,7 +226,6 @@ def write_mcap(data: dict, output_path: str, timestamp: float, frame_id: str):
         }
 
         msg_bytes = json.dumps(msg).encode()
-        timestamp_ns = int(timestamp * 1e9)
 
         writer.add_message(
             channel_id=channel_id,

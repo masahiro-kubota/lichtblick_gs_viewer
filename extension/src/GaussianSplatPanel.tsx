@@ -148,7 +148,7 @@ function GaussianSplatPanel({
         height: "100%",
         position: "relative",
         overflow: "hidden",
-        background: "#000",
+        background: "#808080",
       }}
     >
       <canvas
